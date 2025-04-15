@@ -157,7 +157,7 @@ if args.is_training:
         exp.train(setting)
 
         print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
-        exp.test(setting)
+        exp.mtest(setting,stockCode=args.data_path, test=1)
         torch.cuda.empty_cache()
 else:
     ii = 0
@@ -181,5 +181,5 @@ else:
 
     exp = Exp(args)  # set experiments
     print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
-    exp.test(setting, test=1)
+    exp.mtest(setting,stockCode=args.data_path, test=1)
     torch.cuda.empty_cache()

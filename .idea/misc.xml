@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Remote Python 3.8.10 (sftp://baozh@101.126.18.245:22/home/baozh/.virtualenvs/TimeMixer/bin/python)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Remote Python 3.8.10 (sftp://baozh@101.126.18.245:22/data/zhice/baozh/Repos/TimeMixer/bin/python)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="bzh_TimeMixer" project-jdk-type="Python SDK" />
 </project>

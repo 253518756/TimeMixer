@@ -18,7 +18,7 @@ if index_stock_cons_df is not None:
     all_stocks_data = []
 
     script = """
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=3
 
 model_name=TimeMixer
 
@@ -44,7 +44,7 @@ target=涨跌幅
         sentence = """
 python -u run.py \
     --task_name long_term_forecast \
-    --is_training 1 \
+    --is_training 0 \
     --root_path  ./dataset/CSI1000/ \
     --data_path """ + stock_code + """ \
     --model_id CSI1000_$seq_len_$pred_len \
@@ -69,13 +69,13 @@ python -u run.py \
     --down_sampling_layers $down_sampling_layers \
     --down_sampling_method avg \
     --down_sampling_window $down_sampling_window \
-    --inverse \
+    --num_workers 0 \
         """
         print(sentence)
         script += sentence + "\n"
 
 
     # 保存脚本到文件
-    with open("./scripts/TimeMixer_CSI1000_32_32.sh", "w") as f:
+    with open("./scripts/TimeMixer_CSI1000_32_32_test.sh", "w", encoding='utf-8') as f:
         f.write(script)
-    print(f"所有股票数据已保存到 ./dataset/./scripts/TimeMixer_CSI1000_96_32.sh!")
+    print(f"over!")

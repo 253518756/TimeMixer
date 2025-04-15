@@ -1,25 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="baozh@101.126.18.245:22 password (3)" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="leadtek@192.168.3.221:22 password" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
-      <paths name="baozh@101.126.18.245:22 password">
+      <paths name="leadtek@192.168.3.221:22 password">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/baozh/Repos/TimeMixer" local="$PROJECT_DIR$" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="baozh@101.126.18.245:22 password (2)">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/data/zhice/baozh/Repos/TimeMixer" local="$PROJECT_DIR$" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="baozh@101.126.18.245:22 password (3)">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/data/zhice/baozh/Repos/TimeMixer" local="$PROJECT_DIR$" />
+            <mapping deploy="/sdd/bzh/Projects/TimeMixer" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>

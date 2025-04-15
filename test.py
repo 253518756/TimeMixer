@@ -1,11 +1,9 @@
-import numpy as np
-import pandas as pd
 
-file_path = './results/long_term_forecast_ETTh2_96_96_none_TimeMixer_ETTh2_sl96_pl96_dm16_nh8_el2_dl1_df32_fc1_ebtimeF_dtTrue_Exp_0/pred.npy'
-data = np.load(file_path)
-df = pd.DataFrame(data[0])
-# np.savetxt('result.txt', data, delimiter=',', fmt='%s')
-print(data.shape)
-print(data[0])
-csv_path = ("result.csv")
-df.to_csv(csv_path, index=False)
+import numpy as np
+from utils.metrics import mCORR
+# 示例数据
+pred = np.array([1, -2, 3, -4])
+true = np.array([2, -3, 4, -5])
+# 调用自定义正确率函数
+acc = mCORR(pred, true)
+print("自定义正确率：", acc)
