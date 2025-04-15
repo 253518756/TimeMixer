@@ -105,6 +105,10 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         if not os.path.exists(path):
             os.makedirs(path)
 
+        if os.path.exists(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')):
+            print("Loading previously saved weights...")
+            self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')))
+
         time_now = time.time()
 
         train_steps = len(train_loader)
@@ -269,6 +273,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 pred = outputs
                 true = batch_y
 
+
                 preds.append(pred)
                 trues.append(true)
                 if i % 20 == 0:
@@ -276,6 +281,11 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     if test_data.scale and self.args.inverse:
                         shape = input.shape
                         input = test_data.inverse_transform(input.squeeze(0)).reshape(shape)
+                        # 将预测值和真实值也反转
+                        true = test_data.inverse_transform(true.squeeze(0)).reshape(true.shape)
+                        pred = test_data.inverse_transform(pred.squeeze(0)).reshape(pred.shape)
+
+
                     gt = np.concatenate((input[0, :, -1], true[0, :, -1]), axis=0)
                     pd = np.concatenate((input[0, :, -1], pred[0, :, -1]), axis=0)
                     visual(gt, pd, os.path.join(folder_path, str(i) + '.pdf'))
