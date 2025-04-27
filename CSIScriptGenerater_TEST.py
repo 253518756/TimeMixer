@@ -18,12 +18,12 @@ if index_stock_cons_df is not None:
     all_stocks_data = []
 
     script = """
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=3
 
 model_name=TimeMixer
 
 seq_len=32
-pred_len=1
+pred_len=32
 e_layers=2
 down_sampling_layers=3
 down_sampling_window=2
@@ -32,20 +32,20 @@ d_model=16
 d_ff=32
 train_epochs=10
 patience=10
-batch_size=32
+batch_size=16
 target=涨跌幅
 
     """
 
-    # 遍历每支成分股
-    for _, row in index_stock_cons_df.iterrows():
-        stock_code = row['品种代码']
 
-        sentence = """
+
+    stock_code = '002833'
+
+    sentence = """
 python -u run.py \
     --task_name long_term_forecast \
-    --is_training 1 \
-    --root_path  ./dataset/CSI1000/ \
+    --is_training 0 \
+    --root_path  ./dataset/CSI1000_TEST/ \
     --data_path """ + stock_code + """ \
     --model_id CSI1000_$seq_len_$pred_len \
     --model $model_name \
@@ -65,17 +65,18 @@ python -u run.py \
     --learning_rate $learning_rate \
     --train_epochs $train_epochs \
     --patience $patience \
-    --batch_size $batch_size \
+    --batch_size 128 \
     --down_sampling_layers $down_sampling_layers \
     --down_sampling_method avg \
     --down_sampling_window $down_sampling_window \
     --num_workers 10 \
+    --inverse \
         """
-        print(sentence)
-        script += sentence + "\n"
+    print(sentence)
+    script += sentence + "\n"
 
 
     # 保存脚本到文件
-    with open("./scripts/TimeMixer_CSI1000_32_1.sh", "w", encoding='utf-8') as f:
+    with open("./scripts/TimeMixer_CSI1000_32_32_use.sh", "w", encoding='utf-8') as f:
         f.write(script)
     print(f"over!")

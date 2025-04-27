@@ -32,25 +32,23 @@ d_model=16
 d_ff=32
 train_epochs=10
 patience=10
-batch_size=32
+batch_size=5
 target=涨跌幅
 
     """
 
-    # 遍历每支成分股
-    for _, row in index_stock_cons_df.iterrows():
-        stock_code = row['品种代码']
 
-        sentence = """
+
+    sentence = """
 python -u run.py \
     --task_name long_term_forecast \
     --is_training 1 \
-    --root_path  ./dataset/CSI1000/ \
-    --data_path """ + stock_code + """ \
+    --root_path  ./dataset/CSI300/ \
+    --data_path 000000 \
     --model_id CSI1000_$seq_len_$pred_len \
     --model $model_name \
     --target $target \
-    --data CSI1000 \
+    --data CSI300 \
     --features M \
     --seq_len $seq_len \
     --label_len 0 \
@@ -71,11 +69,11 @@ python -u run.py \
     --down_sampling_window $down_sampling_window \
     --num_workers 10 \
         """
-        print(sentence)
-        script += sentence + "\n"
+    print(sentence)
+    script += sentence + "\n"
 
 
     # 保存脚本到文件
-    with open("./scripts/TimeMixer_CSI1000_32_1.sh", "w", encoding='utf-8') as f:
+    with open("./scripts/TimeMixer_CSI1000_32_1_test.sh", "w", encoding='utf-8') as f:
         f.write(script)
     print(f"over!")

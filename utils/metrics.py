@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 def RSE(pred, true):
@@ -39,6 +40,16 @@ def MSPE(pred, true):
     return np.mean(np.square((pred - true) / true))
 
 
+def IC(pred, true):
+    pred_flat = pred.flatten()
+    true_flat = true.flatten()
+    df = pd.DataFrame({'pred': pred_flat, 'true': true_flat})
+    ic = df['pred'].corr(df['true'])
+    ric = df['pred'].corr(df['true'], method='spearman')
+    return ic, ric
+
+
+
 def metric(pred, true):
     mae = MAE(pred, true)
     mse = MSE(pred, true)
@@ -55,5 +66,6 @@ def metric1(pred, true):
     mape = MAPE(pred, true)
     mspe = MSPE(pred, true)
     correct = mCORR(pred[:,:,-1], true[:,:,-1])
+    ic, ric = IC(pred[:,:,-1], true[:,:,-1])
 
-    return mae, mse, rmse, mape, mspe, correct
+    return mae, mse, rmse, mape, mspe, correct, ic, ric

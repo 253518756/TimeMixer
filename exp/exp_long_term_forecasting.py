@@ -5,6 +5,7 @@ from exp.exp_basic import Exp_Basic
 from utils.tools import EarlyStopping, adjust_learning_rate, visual, save_to_csv, visual_weights
 from utils.metrics import metric
 from utils.metrics import metric1
+from utils.metrics import IC
 import torch
 import torch.nn as nn
 from torch import optim
@@ -12,6 +13,7 @@ import os
 import time
 import warnings
 import numpy as np
+import pandas as pd
 
 warnings.filterwarnings('ignore')
 
@@ -385,19 +387,19 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
                 preds.append(pred)
                 trues.append(true)
-                if i % 20 == 0:
-                    input = batch_x.detach().cpu().numpy()
-                    if test_data.scale and self.args.inverse:
-                        shape = input.shape
-                        input = test_data.inverse_transform(input.squeeze(0)).reshape(shape)
-                        # ��Ԥ��ֵ����ʵֵҲ��ת
-                        true = test_data.inverse_transform(true.squeeze(0)).reshape(true.shape)
-                        pred = test_data.inverse_transform(pred.squeeze(0)).reshape(pred.shape)
-
-
-                    gt = np.concatenate((input[0, :, -1], true[0, :, -1]), axis=0)
-                    pd = np.concatenate((input[0, :, -1], pred[0, :, -1]), axis=0)
-                    visual(gt, pd, os.path.join(folder_path, str(i) + '.pdf'))
+                # if i % 1 == 0:
+                #     input = batch_x.detach().cpu().numpy()
+                #     if test_data.scale and self.args.inverse:
+                #         shape = input.shape
+                #         input = test_data.inverse_transform(input.squeeze(0)).reshape(shape)
+                #         # ��Ԥ��ֵ����ʵֵҲ��ת
+                #         true = test_data.inverse_transform(true.squeeze(0)).reshape(true.shape)
+                #         pred = test_data.inverse_transform(pred.squeeze(0)).reshape(pred.shape)
+                #
+                #
+                #     gt = np.concatenate((input[0, :, -1], true[0, :, -1]), axis=0)
+                #     pd = np.concatenate((input[0, :, -1], pred[0, :, -1]), axis=0)
+                #     visual(gt, pd, os.path.join(folder_path, str(i) + '.pdf'))
 
         preds = np.concatenate(preds, axis=0)
         trues = np.concatenate(trues, axis=0)
@@ -416,7 +418,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
-        mae, mse, rmse, mape, mspe, corr = metric1(preds, trues)
+        mae, mse, rmse, mape, mspe, corr, ic, ric = metric1(preds, trues)
 
 
         # result save with csv
@@ -430,8 +432,8 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             'mape': mape,
             'mspe': mspe,
             'corr': corr,
-            'pred0': preds[0,:,-1].tolist(),
-            'true0': trues[0,:,-1].tolist()
+            'ic': ic,
+            'ric': ric
         }
         # Convert the dictionary to a DataFrame
         import pandas as pd
@@ -455,6 +457,245 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
         print('mse:{}, mae:{}, corr:{}'.format(mse, mae, corr))
         print('rmse:{}, mape:{}, mspe:{}'.format(rmse, mape, mspe))
+
+
+
+
+
+        return
+
+
+
+    def rank_ic_csv_generate(self, setting, stockCode='000000', test=0):
+        test_data, test_loader = self._get_data(flag='test')
+        if test:
+            print('loading model')
+            self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')))
+
+        checkpoints_path = './checkpoints/' + setting + '/'
+        preds = []
+        trues = []
+        raw = test_data.get_raw_data()
+
+        # 进行切片操作,取‘date’列
+        print("切片shape:", raw.shape)
+        raw = raw.to_numpy()
+        raw = raw[32:-((raw.shape[0] - 32) % 5), 0]
+
+        print("切片:", raw)
+
+
+        folder_path = './test_results/' + setting + '/'
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
+        self.model.eval()
+        with torch.no_grad():
+            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
+
+                # 每隔5天取一次数据
+                if i % 5 != 0:
+                    continue
+
+                batch_x = batch_x.float().to(self.device)
+                batch_y = batch_y.float().to(self.device)
+
+                batch_x_mark = batch_x_mark.float().to(self.device)
+                batch_y_mark = batch_y_mark.float().to(self.device)
+
+                if 'PEMS' == self.args.data or 'Solar' == self.args.data:
+                    batch_x_mark = None
+                    batch_y_mark = None
+
+                if self.args.down_sampling_layers == 0:
+                    dec_inp = torch.zeros_like(batch_y[:, -self.args.pred_len:, :]).float()
+                    dec_inp = torch.cat([batch_y[:, :self.args.label_len, :], dec_inp], dim=1).float().to(self.device)
+                else:
+                    dec_inp = None
+
+                # encoder - decoder
+                if self.args.use_amp:
+                    with torch.cuda.amp.autocast():
+                        if self.args.output_attention:
+                            outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+                        else:
+                            outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                else:
+                    if self.args.output_attention:
+                        outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+
+                    else:
+                        outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+
+                f_dim = -1 if self.args.features == 'MS' else 0
+
+                outputs = outputs.detach().cpu().numpy()
+                batch_y = batch_y.detach().cpu().numpy()
+
+                pred = outputs
+                true = batch_y
+
+
+                preds.append(pred)
+                trues.append(true)
+
+
+
+        preds = np.concatenate(preds, axis=0)
+        trues = np.concatenate(trues, axis=0)
+
+
+
+        print('test shape:', preds.shape, trues.shape, raw.shape)
+        preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
+        trues = trues.reshape(-1, trues.shape[-2], trues.shape[-1])
+        print('test shape:', preds.shape, trues.shape, raw.shape)
+
+        # result save
+        folder_path = './results/' + setting + '/'
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
+        # pred前两个维度flatten
+        pred_col = preds[:, :, -1].flatten()
+
+        date_col = raw
+
+        # 和date_col维度相同，内容全是stock_code
+        stock_code_col = np.full_like(date_col, stockCode)
+        true_col = trues[:, :, -1].flatten()
+
+        # 构建 DataFrame
+        result = pd.DataFrame({
+            'date': pd.to_datetime(date_col),
+            'stockCode': stock_code_col,
+            'pred': pred_col,
+            'true': true_col
+        })
+
+        csv_path = os.path.join(folder_path, 'stock_pred_true_result.csv')
+
+        # 保存到一个已经存在的CSV文件，续写在后面
+        # 如果文件不存在，则创建一个新的文件
+
+        # Check if the file already exists
+        if os.path.exists(csv_path):
+            # Append to the existing file
+            result.to_csv(csv_path, mode='a', header=False, index=False)
+        else:
+            # Create a new file and write the header
+            result.to_csv(csv_path, mode='w', header=True, index=False)
+
+        return
+
+    def race_test(self, setting, test=0):
+        test_data, test_loader = self._get_data(flag='test')
+        if test:
+            print('loading model')
+            self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')))
+
+        checkpoints_path = './checkpoints/' + setting + '/'
+        preds = []
+        trues = []
+        folder_path = './test_results/' + setting + '/'
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
+        self.model.eval()
+        with torch.no_grad():
+            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
+
+
+                batch_x = batch_x.float().to(self.device)
+                batch_y = batch_y.float().to(self.device)
+
+                batch_x_mark = batch_x_mark.float().to(self.device)
+                batch_y_mark = batch_y_mark.float().to(self.device)
+
+                if 'PEMS' == self.args.data or 'Solar' == self.args.data:
+                    batch_x_mark = None
+                    batch_y_mark = None
+
+                if self.args.down_sampling_layers == 0:
+                    dec_inp = torch.zeros_like(batch_y[:, -self.args.pred_len:, :]).float()
+                    dec_inp = torch.cat([batch_y[:, :self.args.label_len, :], dec_inp], dim=1).float().to(self.device)
+                else:
+                    dec_inp = None
+
+                # encoder - decoder
+                if self.args.use_amp:
+                    with torch.cuda.amp.autocast():
+                        if self.args.output_attention:
+                            outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+                        else:
+                            outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                else:
+                    if self.args.output_attention:
+                        outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+
+                    else:
+                        outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+
+                f_dim = -1 if self.args.features == 'MS' else 0
+
+                outputs = outputs.detach().cpu().numpy()
+                batch_y = batch_y.detach().cpu().numpy()
+
+                pred = outputs
+                true = batch_y
+
+
+                preds.append(pred)
+                trues.append(true)
+
+
+        preds = np.concatenate(preds, axis=0)
+        trues = np.concatenate(trues, axis=0)
+
+        date = '000000'
+        print('test shape:', preds.shape, trues.shape)
+        preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
+        trues = trues.reshape(-1, trues.shape[-2], trues.shape[-1])
+        print('test shape:', preds.shape, trues.shape)
+
+        if self.args.data == 'PEMS':
+            B, T, C = preds.shape
+            preds = test_data.inverse_transform(preds.reshape(-1, C)).reshape(B, T, C)
+            trues = test_data.inverse_transform(trues.reshape(-1, C)).reshape(B, T, C)
+
+        # result save
+        folder_path = './results/' + setting + '/'
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
+        ic, ric = IC(preds, trues)
+
+
+        # result save with csv
+        # Save the results to a CSV file
+        # Create a DataFrame from the metrics
+        result = {
+            'date': date,
+            'ic': ic,
+            'ric': ric
+        }
+        # Convert the dictionary to a DataFrame
+        import pandas as pd
+        df = pd.DataFrame([result])
+        csv_path = os.path.join(folder_path, 'result.csv')
+
+        # 保存到一个已经存在的CSV文件，续写在后面
+        # 如果文件不存在，则创建一个新的文件
+
+        # Check if the file already exists
+        if os.path.exists(csv_path):
+            # Append to the existing file
+            df.to_csv(csv_path, mode='a', header=False, index=False)
+        else:
+            # Create a new file and write the header
+            df.to_csv(csv_path, mode='w', header=True, index=False)
+
+        print('date:{}, ic:{}, ric:{}'.format(date, ic, ric))
 
 
 

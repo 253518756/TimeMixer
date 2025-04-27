@@ -8,6 +8,7 @@ from exp.exp_long_term_forecasting import Exp_Long_Term_Forecast
 from exp.exp_short_term_forecasting import Exp_Short_Term_Forecast
 import random
 import numpy as np
+import pandas as pd
 
 fix_seed = 2021
 random.seed(fix_seed)
@@ -132,33 +133,43 @@ else:
     Exp = Exp_Long_Term_Forecast
 
 if args.is_training:
-    for ii in range(args.itr):
-        # setting record of experiments
-        setting = '{}_{}_{}_{}_{}_sl{}_pl{}_dm{}_nh{}_el{}_dl{}_df{}_fc{}_eb{}_dt{}_{}_{}'.format(
-            args.task_name,
-            args.model_id,
-            args.comment,
-            args.model,
-            args.data,
-            args.seq_len,
-            args.pred_len,
-            args.d_model,
-            args.n_heads,
-            args.e_layers,
-            args.d_layers,
-            args.d_ff,
-            args.factor,
-            args.embed,
-            args.distil,
-            args.des, ii)
+    df_raw = pd.read_csv(args.root_path + 'train.csv')
 
-        exp = Exp(args)  # set experiments
-        print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
-        exp.train(setting)
+    # 根据日期分组
+    grouped = df_raw.groupby('日期')
+    # 创建一个空的 DataFrame 用于存储结果
+    result_df = pd.DataFrame()
+    # 遍历每个组
+    for date, group in grouped:
 
-        print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
-        exp.mtest(setting,stockCode=args.data_path, test=1)
-        torch.cuda.empty_cache()
+
+        for ii in range(args.itr):
+            # setting record of experiments
+            setting = '{}_{}_{}_{}_{}_sl{}_pl{}_dm{}_nh{}_el{}_dl{}_df{}_fc{}_eb{}_dt{}_{}_{}'.format(
+                args.task_name,
+                args.model_id,
+                args.comment,
+                args.model,
+                args.data,
+                args.seq_len,
+                args.pred_len,
+                args.d_model,
+                args.n_heads,
+                args.e_layers,
+                args.d_layers,
+                args.d_ff,
+                args.factor,
+                args.embed,
+                args.distil,
+                args.des, ii)
+
+            exp = Exp(args)  # set experiments
+            print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
+            exp.train(setting)
+
+            print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
+            exp.mtest(setting,stockCode=args.data_path, test=1)
+            torch.cuda.empty_cache()
 else:
     ii = 0
     setting = '{}_{}_{}_{}_{}_sl{}_pl{}_dm{}_nh{}_el{}_dl{}_df{}_fc{}_eb{}_dt{}_{}_{}'.format(
