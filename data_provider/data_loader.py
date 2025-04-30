@@ -872,165 +872,6 @@ class Dataset_Solar(Dataset):
         return self.scaler.inverse_transform(data)
 
 
-
-# class CSI1000Loader(Dataset):
-#     def __init__(self, root_path, data_path, win_size, step=1, flag="train"):
-#         if size == None:
-#             self.seq_len = 24 * 4 * 4
-#             self.label_len = 24 * 4
-#             self.pred_len = 24 * 4
-#         else:
-#             self.seq_len = size[0]
-#             self.label_len = size[1]
-#             self.pred_len = size[2]
-#
-#         self.flag = flag
-#         self.step = step
-#         self.win_size = win_size
-#         self.scaler = StandardScaler()
-#
-#         train_data = pd.read_csv(root_path + '/train/' + 'csi1000_train_' + data_path + '_stocks_data.csv')
-#         test_data = pd.read_csv(root_path + '/test/' + 'csi1000_test_' + data_path + '_stocks_data.csv')
-#         labels = test_data.values[:, -1:]
-#         train_data = train_data.values[:, :-1]
-#         test_data = test_data.values[:, :-1]
-#
-#         self.scaler.fit(train_data)
-#         train_data = self.scaler.transform(train_data)
-#         test_data = self.scaler.transform(test_data)
-#         self.train = train_data
-#         self.test = test_data
-#         self.val = test_data
-#         self.test_labels = labels
-#         print("test:", self.test.shape)
-#         print("train:", self.train.shape)
-#
-#     def __len__(self):
-#         """
-#         Number of images in the object dataset.
-#         """
-#         if self.flag == "train":
-#             return (self.train.shape[0] - self.win_size) // self.step + 1
-#         elif (self.flag == 'val'):
-#             return (self.val.shape[0] - self.win_size) // self.step + 1
-#         elif (self.flag == 'test'):
-#             return (self.test.shape[0] - self.win_size) // self.step + 1
-#         else:
-#             return (self.test.shape[0] - self.win_size) // self.win_size + 1
-#
-#     def __getitem__(self, index):
-#         index = index * self.step
-#         if self.flag == "train":
-#             return np.float32(self.train[index:index + self.win_size]), np.float32(self.test_labels[0:self.win_size])
-#         elif (self.flag == 'val'):
-#             return np.float32(self.val[index:index + self.win_size]), np.float32(self.test_labels[0:self.win_size])
-#         elif (self.flag == 'test'):
-#             return np.float32(self.test[index:index + self.win_size]), np.float32(
-#                 self.test_labels[index:index + self.win_size])
-#         else:
-#             return np.float32(self.test[
-#                               index // self.step * self.win_size:index // self.step * self.win_size + self.win_size]), np.float32(
-#                 self.test_labels[index // self.step * self.win_size:index // self.step * self.win_size + self.win_size])
-
-
-# class CSI1000Loader(Dataset):
-#     def __init__(self, root_path, flag='train', size=None,
-#                  features='S', data_path='ETTh1.csv',
-#                  target='OT', scale=True, timeenc=0, freq='h', seasonal_patterns=None):
-#         # size [seq_len, label_len, pred_len]
-#         # info
-#         if size == None:
-#             self.seq_len = 24 * 4 * 4
-#             self.label_len = 24 * 4
-#             self.pred_len = 24 * 4
-#         else:
-#             self.seq_len = size[0]
-#             self.label_len = size[1]
-#             self.pred_len = size[2]
-#         # init
-#         self.flag = flag
-#         # self.step = step
-#         self.features = features
-#         self.target = target
-#         self.scale = scale
-#         self.timeenc = timeenc
-#         self.freq = freq
-#
-#         self.root_path = root_path
-#         self.data_path = data_path
-#         self.__read_data__()
-#
-#     def __read_data__(self):
-#         self.scaler = StandardScaler()
-#
-#         train_data_origin = pd.read_csv(self.root_path + '/train/' + 'csi1000_train_' + self.data_path + '_stocks_data.csv')
-#         test_data_origin = pd.read_csv(self.root_path + '/test/' + 'csi1000_test_' + self.data_path + '_stocks_data.csv')
-#
-#         train_labels = train_data_origin.values[:, -1:]
-#         train_data = train_data_origin.values[:, :-1]
-#         test_labels = test_data_origin.values[:, -1:]
-#         test_data = test_data_origin.values[:, :-1]
-#
-#         # 从train_data中提取时间戳
-#
-#         train_data_stamp = pd.DataFrame()
-#         train_data_stamp['date'] = pd.to_datetime(train_data[:, 0])
-#
-#         train_data_stamp = time_features(pd.to_datetime(train_data_stamp['date'].values), freq=self.freq)
-#         train_data_stamp = train_data_stamp.transpose(1, 0)
-#
-#         test_data_stamp = pd.DataFrame()
-#         test_data_stamp['date'] = pd.to_datetime(test_data[:, 0])
-#
-#         test_data_stamp = time_features(pd.to_datetime(test_data_stamp['date'].values), freq=self.freq)
-#         test_data_stamp = test_data_stamp.transpose(1, 0)
-#
-#         train_data = train_data[:, 1:]
-#         test_data = test_data[:, 1:]
-#
-#         print(train_data)
-#
-#         self.scaler.fit(train_data)
-#         train_data = self.scaler.transform(train_data)
-#         test_data = self.scaler.transform(test_data)
-#         self.train = train_data
-#         self.test = test_data
-#         self.val = test_data
-#         self.train_labels = train_labels
-#         self.test_labels = test_labels
-#
-#         self.train_data_x = self.train
-#         self.train_data_y = self.train_labels
-#         self.train_data_stamp = train_data_stamp
-#
-#         self.test_data_x = self.test
-#         self.test_data_y = self.test_labels
-#         self.test_data_stamp = test_data_stamp
-#
-#     def __getitem__(self, index):
-#         s_begin = index
-#         s_end = s_begin + self.seq_len
-#         r_begin = s_end - self.label_len
-#         r_end = r_begin + self.label_len + self.pred_len
-#
-#         seq_x = self.test_data_x[s_begin:s_end]
-#         seq_y = self.test_data_y[r_begin:r_end]
-#         seq_x_mark = self.test_data_stamp[s_begin:s_end]
-#         seq_y_mark = self.test_data_stamp[r_begin:r_end]
-#
-#         return seq_x, seq_y, seq_x_mark, seq_y_mark
-#     def __len__(self):
-#         if self.flag == 'train':
-#             return len(self.train_data_x) - self.seq_len - self.pred_len + 1
-#         else:
-#             return len(self.test_data_x) - self.seq_len - self.pred_len + 1
-#
-#
-#     def inverse_transform(self, data):
-#         return self.scaler.inverse_transform(data)
-#
-
-
 class CSI1000Loader(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
@@ -1136,7 +977,6 @@ class CSI1000Loader(Dataset):
         return self.df_raw
 
 
-
 class CSI300Loader(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
@@ -1168,17 +1008,14 @@ class CSI300Loader(Dataset):
 
     def __read_data__(self):
         self.scaler = StandardScaler()
-        df_train = pd.read_csv(self.root_path + 'train.csv')
-        df_test = pd.read_csv(self.root_path + 'test.csv')
+        df_train = pd.read_csv(self.root_path + 'train.csv', dtype={'股票代码': str})
+        df_test = pd.read_csv(self.root_path + 'test_complement.csv', dtype={'股票代码': str})
 
 
-        self.df_train = df_train
-        self.df_test = df_test
-
-        # 丢弃‘股票代码’
-        if self.set_type == 0:
-            df_train = df_train.drop(['股票代码'], axis=1)
-            df_test = df_test.drop(['股票代码'], axis=1)
+        # # 丢弃‘股票代码’
+        # if self.set_type == 0:
+        #     df_train = df_train.drop(['股票代码'], axis=1)
+        #     df_test = df_test.drop(['股票代码'], axis=1)
 
 
 
@@ -1187,11 +1024,11 @@ class CSI300Loader(Dataset):
         else:
             df_raw = df_test
 
+        self.df_raw = df_raw
 
-        cols_data = df_raw.columns[1:]
-        df_data = df_raw[cols_data]
-
-
+        df_raw = df_raw.drop(['股票代码'], axis=1)
+        df_data = df_raw.drop(['日期'], axis=1)
+        print(df_data)
 
 
         if self.scale:
@@ -1223,21 +1060,6 @@ class CSI300Loader(Dataset):
         seq_x_mark = self.data_stamp[s_begin:s_end]
         seq_y_mark = self.data_stamp[r_begin:r_end]
 
-        if self.set_type == 1:
-            # 训练集中对应日期的最后27个数据 + 5个测试数据
-            # 根据日期分组
-            grouped = self.df_train.groupby('股票代码')
-            # 创建一个空的 DataFrame 用于存储结果
-            result_df = pd.DataFrame()
-            # 遍历每个组
-            for code, group in grouped:
-                if code == seq_x[0,0]:
-                    seq_x = group.iloc[-27:, 1:].values
-
-
-
-
-
         return seq_x, seq_y, seq_x_mark, seq_y_mark
 
     def __len__(self):
@@ -1246,4 +1068,6 @@ class CSI300Loader(Dataset):
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)
 
+    def get_raw_data(self):
+        return self.df_raw
 

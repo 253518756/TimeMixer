@@ -464,9 +464,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
         return
 
-
-
-    def rank_ic_csv_generate(self, setting, stockCode='000000', test=0):
+    def race_test(self, setting, stockCode='000000', test=0):
         test_data, test_loader = self._get_data(flag='test')
         if test:
             print('loading model')
@@ -474,16 +472,13 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
         checkpoints_path = './checkpoints/' + setting + '/'
         preds = []
-        trues = []
+        stock_codes = []
         raw = test_data.get_raw_data()
 
-        # 进行切片操作,取‘date’列
-        print("切片shape:", raw.shape)
-        raw = raw.to_numpy()
-        raw = raw[32:-((raw.shape[0] - 32) % 5), 0]
+        raw = raw.iloc[:, 0].astype(str)
+
 
         print("切片:", raw)
-
 
         folder_path = './test_results/' + setting + '/'
         if not os.path.exists(folder_path):
@@ -493,9 +488,10 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         with torch.no_grad():
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
 
-                # 每隔5天取一次数据
-                if i % 5 != 0:
+                if i % 32 != 0:
                     continue
+
+                stock_code = raw[i]
 
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
@@ -503,9 +499,6 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 batch_x_mark = batch_x_mark.float().to(self.device)
                 batch_y_mark = batch_y_mark.float().to(self.device)
 
-                if 'PEMS' == self.args.data or 'Solar' == self.args.data:
-                    batch_x_mark = None
-                    batch_y_mark = None
 
                 if self.args.down_sampling_layers == 0:
                     dec_inp = torch.zeros_like(batch_y[:, -self.args.pred_len:, :]).float()
@@ -530,26 +523,15 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 f_dim = -1 if self.args.features == 'MS' else 0
 
                 outputs = outputs.detach().cpu().numpy()
-                batch_y = batch_y.detach().cpu().numpy()
 
                 pred = outputs
-                true = batch_y
-
 
                 preds.append(pred)
-                trues.append(true)
-
-
+                stock_codes.append(stock_code)
 
         preds = np.concatenate(preds, axis=0)
-        trues = np.concatenate(trues, axis=0)
 
-
-
-        print('test shape:', preds.shape, trues.shape, raw.shape)
         preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
-        trues = trues.reshape(-1, trues.shape[-2], trues.shape[-1])
-        print('test shape:', preds.shape, trues.shape, raw.shape)
 
         # result save
         folder_path = './results/' + setting + '/'
@@ -559,146 +541,27 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         # pred前两个维度flatten
         pred_col = preds[:, :, -1].flatten()
 
-        date_col = raw
-
-        # 和date_col维度相同，内容全是stock_code
-        stock_code_col = np.full_like(date_col, stockCode)
-        true_col = trues[:, :, -1].flatten()
-
         # 构建 DataFrame
         result = pd.DataFrame({
-            'date': pd.to_datetime(date_col),
-            'stockCode': stock_code_col,
+            'stockCode':  [str(code) for code in stock_codes],
             'pred': pred_col,
-            'true': true_col
         })
 
-        csv_path = os.path.join(folder_path, 'stock_pred_true_result.csv')
+        # 根据pred排序，获取前十和后十
+        path = "check.csv"
+        top_10_max_target = result.sort_values(by='pred', ascending=False).head(10).drop(['pred'], axis=1)
+        top_10_min_target = result.sort_values(by='pred', ascending=False).tail(10).drop(['pred'], axis=1)
 
-        # 保存到一个已经存在的CSV文件，续写在后面
-        # 如果文件不存在，则创建一个新的文件
+        # 重置索引
+        top_10_max_target = top_10_max_target.reset_index(drop=True)
+        top_10_min_target = top_10_min_target.reset_index(drop=True)
 
-        # Check if the file already exists
-        if os.path.exists(csv_path):
-            # Append to the existing file
-            result.to_csv(csv_path, mode='a', header=False, index=False)
-        else:
-            # Create a new file and write the header
-            result.to_csv(csv_path, mode='w', header=True, index=False)
+        # 合并两个 DataFrame
+        merged_df = pd.concat([top_10_max_target, top_10_min_target], axis=1)
 
-        return
+        # 重命名列
+        merged_df.columns = ['涨幅最大股票代码', '涨幅最小股票代码']
 
-    def race_test(self, setting, test=0):
-        test_data, test_loader = self._get_data(flag='test')
-        if test:
-            print('loading model')
-            self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')))
-
-        checkpoints_path = './checkpoints/' + setting + '/'
-        preds = []
-        trues = []
-        folder_path = './test_results/' + setting + '/'
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-
-        self.model.eval()
-        with torch.no_grad():
-            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
-
-
-                batch_x = batch_x.float().to(self.device)
-                batch_y = batch_y.float().to(self.device)
-
-                batch_x_mark = batch_x_mark.float().to(self.device)
-                batch_y_mark = batch_y_mark.float().to(self.device)
-
-                if 'PEMS' == self.args.data or 'Solar' == self.args.data:
-                    batch_x_mark = None
-                    batch_y_mark = None
-
-                if self.args.down_sampling_layers == 0:
-                    dec_inp = torch.zeros_like(batch_y[:, -self.args.pred_len:, :]).float()
-                    dec_inp = torch.cat([batch_y[:, :self.args.label_len, :], dec_inp], dim=1).float().to(self.device)
-                else:
-                    dec_inp = None
-
-                # encoder - decoder
-                if self.args.use_amp:
-                    with torch.cuda.amp.autocast():
-                        if self.args.output_attention:
-                            outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
-                        else:
-                            outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
-                else:
-                    if self.args.output_attention:
-                        outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
-
-                    else:
-                        outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
-
-                f_dim = -1 if self.args.features == 'MS' else 0
-
-                outputs = outputs.detach().cpu().numpy()
-                batch_y = batch_y.detach().cpu().numpy()
-
-                pred = outputs
-                true = batch_y
-
-
-                preds.append(pred)
-                trues.append(true)
-
-
-        preds = np.concatenate(preds, axis=0)
-        trues = np.concatenate(trues, axis=0)
-
-        date = '000000'
-        print('test shape:', preds.shape, trues.shape)
-        preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
-        trues = trues.reshape(-1, trues.shape[-2], trues.shape[-1])
-        print('test shape:', preds.shape, trues.shape)
-
-        if self.args.data == 'PEMS':
-            B, T, C = preds.shape
-            preds = test_data.inverse_transform(preds.reshape(-1, C)).reshape(B, T, C)
-            trues = test_data.inverse_transform(trues.reshape(-1, C)).reshape(B, T, C)
-
-        # result save
-        folder_path = './results/' + setting + '/'
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-
-        ic, ric = IC(preds, trues)
-
-
-        # result save with csv
-        # Save the results to a CSV file
-        # Create a DataFrame from the metrics
-        result = {
-            'date': date,
-            'ic': ic,
-            'ric': ric
-        }
-        # Convert the dictionary to a DataFrame
-        import pandas as pd
-        df = pd.DataFrame([result])
-        csv_path = os.path.join(folder_path, 'result.csv')
-
-        # 保存到一个已经存在的CSV文件，续写在后面
-        # 如果文件不存在，则创建一个新的文件
-
-        # Check if the file already exists
-        if os.path.exists(csv_path):
-            # Append to the existing file
-            df.to_csv(csv_path, mode='a', header=False, index=False)
-        else:
-            # Create a new file and write the header
-            df.to_csv(csv_path, mode='w', header=True, index=False)
-
-        print('date:{}, ic:{}, ric:{}'.format(date, ic, ric))
-
-
-
-
+        merged_df.to_csv(path, index=False)
 
         return
